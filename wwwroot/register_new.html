@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Register Page</title>
+    </head>
+    <body>
+        <h1>Add Member</h1>
+        <label>Account</label>
+        <input id="username" type="text" placeholder="enter user name"/>
+        <br>
+        <label>Password</label>
+        <input id="password" type="password" placeholder="enter password"/>
+        <br>
+        <label>Confirm Password</label>
+        <input id="confirmpassword" type="password" placeholder="enter password again"/>
+        <br>
+        <button onclick="register()">Submit</button>
+        <div id="message"></div>
+        <script>
+            async function register(){
+                var username = document.getElementById("username").value.trim();
+                var password = document.getElementById("password").value;
+                var confirmpassword = document.getElementById("confirmpassword").value;
+                if(!username || !password){
+                    alert("Username password can not be empty");
+                    return;
+                }
+                if(password !== confirmpassword){
+                    alert("password and confirm should be the same");
+                    return;
+                }
+                
+                var res = await fetch("/register",{
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                console.log(res);
+                var data = await res.json();
+                var result = data.message;
+                document.getElementById("message").textContent = result;
+            }
+        </script>
+
+    </body>
+</html>

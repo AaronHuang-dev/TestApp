@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <title>修改密碼</title>
+</head>
+<body>
+  <h1>修改密碼</h1>
+
+  <label>帳號：</label>
+  <input id="username"        type="text"     placeholder="請輸入帳號" />
+  <br>
+  <label>目前密碼：</label>
+  <input id="currentPassword" type="password" placeholder="請輸入目前密碼" />
+  <br>
+  <label>新密碼：</label>
+  <input id="newPassword"     type="password" placeholder="請輸入新密碼" />
+  <br>
+  <label>確認新密碼：</label>
+  <input id="confirmPassword" type="password" placeholder="請再輸入一次新密碼" />
+  <br>
+  <button onclick="updatePassword()">確認修改</button>
+  <p id="message"></p>
+  
+  <script>
+    async function updatePassword() {
+      const username        = document.getElementById('username').value.trim();
+      const currentPassword = document.getElementById('currentPassword').value;
+      const newPassword     = document.getElementById('newPassword').value;
+      const confirmPassword = document.getElementById('confirmPassword').value;
+
+      // 前端基本驗證
+      if (!username || !currentPassword || !newPassword) {
+        showMessage('帳號、目前密碼與新密碼不可為空', false);
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        showMessage('兩次輸入的新密碼不一致', false);
+        return;
+      }
+      if (newPassword === currentPassword) {
+        showMessage('新密碼不可與目前密碼相同', false);
+        return;
+      }
+
+      const res = await fetch('/update', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, currentPassword, newPassword})
+      });
+
+      const data = await res.json();
+      showMessage(data.message, data.success);
+    
+    }
+
+    function showMessage(text, isSuccess) {
+      const el = document.getElementById('message');
+      el.textContent = text;
+      el.className   = isSuccess ? 'success' : 'error';
+    }
+</script>
+</body>
+</html>

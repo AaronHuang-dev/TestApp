@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ASP.NET Core 入門教學 — POST /login 逐行解說</title>
+<style>
+  :root {
+    --blue:   #2E74B5;
+    --blue-lt:#EBF3FB;
+    --gray:   #F2F2F2;
+    --border: #CCCCCC;
+    --text:   #222;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: Arial, sans-serif; font-size: 14px; color: var(--text);
+    max-width: 900px; margin: 0 auto; padding: 40px 32px 80px;
+    line-height: 1.7;
+  }
+  /* Cover */
+  .cover { text-align: center; padding: 40px 0 56px; border-bottom: 3px solid var(--blue); margin-bottom: 48px; }
+  .cover h1 { font-size: 32px; color: var(--blue); margin-bottom: 8px; }
+  .cover .subtitle { font-size: 18px; color: #555; margin-bottom: 6px; }
+  .cover .meta { font-size: 12px; color: #999; }
+
+  /* Headings */
+  h2 { font-size: 20px; color: var(--blue); margin: 40px 0 12px; border-bottom: 2px solid var(--blue-lt); padding-bottom: 4px; }
+  h3 { font-size: 16px; color: #404040; margin: 24px 0 8px; }
+
+  p { margin-bottom: 12px; }
+
+  /* Code blocks */
+  pre {
+    background: var(--gray); border-left: 4px solid var(--blue);
+    padding: 12px 16px; font-family: "Courier New", monospace; font-size: 13px;
+    overflow-x: auto; margin: 0 0 16px; line-height: 1.5; border-radius: 0 4px 4px 0;
+  }
+  code { font-family: "Courier New", monospace; font-size: 13px; background: #EFEFEF; padding: 1px 4px; border-radius: 3px; }
+
+  /* Tables */
+  table { border-collapse: collapse; width: 100%; margin: 16px 0 24px; font-size: 13.5px; }
+  th {
+    background: var(--blue); color: #fff; padding: 8px 12px;
+    text-align: left; font-weight: bold;
+  }
+  td { padding: 8px 12px; border: 1px solid var(--border); vertical-align: top; }
+  tr:nth-child(even) td { background: #FAFAFA; }
+  .highlight td { background: var(--blue-lt) !important; font-weight: bold; }
+  .code-cell { font-family: "Courier New", monospace; font-size: 12.5px; }
+
+  /* Data table */
+  .data-table { width: auto; }
+  .data-table th, .data-table td { width: 160px; }
+  .data-table .idx { width: 60px; background: var(--blue-lt); font-weight: bold; text-align: center; }
+
+  /* Bullets */
+  ul { padding-left: 24px; margin-bottom: 16px; }
+  li { margin-bottom: 6px; }
+
+  /* Section spacing */
+  section { margin-bottom: 48px; }
+
+  /* Risk table color coding */
+  .risk-problem { font-weight: bold; }
+
+  /* Flow diagram */
+  .flow {
+    display: flex; align-items: center; flex-wrap: wrap;
+    gap: 0; margin: 16px 0 24px;
+  }
+  .flow-box {
+    background: var(--blue-lt); border: 1.5px solid var(--blue);
+    border-radius: 6px; padding: 8px 14px; font-size: 12.5px;
+    text-align: center; min-width: 100px;
+  }
+  .flow-arrow { padding: 0 8px; color: var(--blue); font-size: 18px; font-weight: bold; }
+
+  /* Dark code block */
+  pre.dark {
+    background: #1E1E1E; color: #D4D4D4; border-left: 4px solid var(--blue);
+    padding: 14px 18px; font-family: "Courier New", monospace; font-size: 13px;
+    overflow-x: auto; margin: 0 0 16px; line-height: 1.6; border-radius: 0 4px 4px 0;
+  }
+  .kw  { color: #569CD6; }
+  .str { color: #CE9178; }
+  .cm  { color: #6A9955; }
+  .fn  { color: #DCDCAA; }
+</style>
+</head>
+<body>
+
+<!-- Cover -->
+<div class="cover">
+  <h1>ASP.NET Core 入門教學</h1>
+  <div class="subtitle">POST /login 逐行解說 × index.html 前端詳解 × 新增會員功能</div>
+  <div class="meta">專案：TestApp　．　框架：.NET 10.0 Minimal API</div>
+</div>
+
+<!-- 一、專案概覽 -->
+<section>
+  <h2>一、專案概覽</h2>
+  <p>TestApp 是一個以 <strong>ASP.NET Core Minimal API</strong> 風格撰寫的輕量後端專案，目標框架為 .NET 10.0。整個應用程式僅包含一個主要程式檔 <code>Program.cs</code>，無需 Controller 或 Startup 類別，適合快速原型開發或學習用途。</p>
+
+  <h3>1.1 現有 API 端點</h3>
+  <table>
+    <thead><tr><th>端點</th><th>HTTP 方法</th><th>說明</th></tr></thead>
+    <tbody>
+      <tr><td class="code-cell">/hello</td><td>GET</td><td>回傳固定字串 "hello matt"</td></tr>
+      <tr><td class="code-cell">/weatherforecast</td><td>GET</td><td>回傳五筆隨機天氣資料（範例用）</td></tr>
+      <tr class="highlight"><td class="code-cell">/login</td><td>POST</td><td>本文件重點：驗證帳號密碼並回傳結果</td></tr>
+    </tbody>
+  </table>
+
+  <h3>1.2 已知問題</h3>
+  <ul>
+    <li>密碼明文儲存於 <code>users.csv</code>，未使用 Hash（如 bcrypt）</li>
+    <li>登入成功後未發放 JWT Token，後端無法識別後續請求身份</li>
+    <li>每次登入都重新讀取 CSV 檔，無快取機制</li>
+    <li><code>app.UseHttpsRedirection()</code> 被注解掉，未強制 HTTPS</li>
+    <li><code>TodoItem</code> record 已定義但無對應 API</li>
+  </ul>
+</section>
+
+<!-- 二、完整程式碼 -->
+<section>
+  <h2>二、POST /login 完整程式碼</h2>
+  <p>以下是 <code>Program.cs</code> 中登入 API 的完整程式碼，供後續逐行解說參考：</p>
+<pre>app.MapPost("/login", (LoginRequest req) =>
+{
+    var csvPath = Path.Combine(Directory.GetCurrentDirectory(), "users.csv");
+    if (!File.Exists(csvPath))
+        return Results.Problem("找不到使用者資料檔");
+
+    var users = File.ReadAllLines(csvPath)
+        .Skip(1)
+        .Select(line => line.Split(','))
+        .Where(parts => parts.Length == 2)
+        .Select(parts => (Username: parts[0].Trim(), Password: parts[1].Trim()))
+        .ToList();
+
+    var matched = users.FirstOrDefault(u =>
+        u.Username == req.Username && u.Password == req.Password);
+
+    if (matched == default)
+        return Results.Json(new { success = false, message = "帳號或密碼錯誤" },
+            statusCode: 401);
+
+    return Results.Json(new { success = true, username = matched.Username });
+});</pre>
+</section>
+
+<!-- 三、逐行解說 -->
+<section>
+  <h2>三、逐行詳細解說</h2>
+
+  <h3>3.1 宣告 POST 端點並接收請求</h3>
+  <pre>app.MapPost("/login", (LoginRequest req) =></pre>
+  <p><code>MapPost</code> 方法向 ASP.NET Core 的路由系統登記一個 POST 端點，路徑為 <code>/login</code>。</p>
+  <p>括號內的參數 <code>LoginRequest req</code> 是「<strong>模型繫結（Model Binding）</strong>」的體現——ASP.NET 會自動把 HTTP Request Body 的 JSON 反序列化成 <code>LoginRequest</code> 物件。</p>
+  <p><code>LoginRequest</code> 定義在檔案最底部：</p>
+  <pre>record LoginRequest(string Username, string Password);</pre>
+  <p>用戶端呼叫時必須傳入符合此結構的 JSON，例如：</p>
+  <pre>{ "username": "admin", "password": "admin123" }</pre>
+
+  <h3>3.2 組出 CSV 檔案的完整路徑</h3>
+  <pre>var csvPath = Path.Combine(Directory.GetCurrentDirectory(), "users.csv");</pre>
+  <p><code>Directory.GetCurrentDirectory()</code> 取得程式的工作目錄（通常是專案根目錄）。<code>Path.Combine</code> 以安全方式把目錄與檔名拼接，自動處理斜線問題，避免手動字串拼接時在不同作業系統產生錯誤路徑。</p>
+
+  <h3>3.3 檔案存在性檢查</h3>
+  <pre>if (!File.Exists(csvPath))
+    return Results.Problem("找不到使用者資料檔");</pre>
+  <p>若 <code>users.csv</code> 不存在，提早回傳以避免後續程式拋出例外。<code>Results.Problem</code> 回傳 HTTP 500，回應 body 為標準的 RFC 7807 ProblemDetails JSON 格式，方便前端統一解析錯誤。</p>
+
+  <h3>3.4 讀取 CSV 並轉換為 List（LINQ 鏈式操作）</h3>
+  <p>以下五行是一條 LINQ 鏈式查詢，逐步把 CSV 的原始文字轉換成結構化的使用者清單：</p>
+  <table>
+    <thead><tr><th>程式碼</th><th>說明</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="code-cell">File.ReadAllLines(csvPath)</td>
+        <td>把整個 CSV 讀入，每行變成一個字串，回傳 <code>string[]</code></td>
+      </tr>
+      <tr>
+        <td class="code-cell">.Skip(1)</td>
+        <td>跳過第一行標題列（<code>username,password</code>），從第二行開始</td>
+      </tr>
+      <tr>
+        <td class="code-cell">.Select(line => line.Split(','))</td>
+        <td>每行以逗號切割，<code>"admin,admin123"</code> 變成 <code>["admin", "admin123"]</code></td>
+      </tr>
+      <tr>
+        <td class="code-cell">.Where(parts => parts.Length == 2)</td>
+        <td>過濾掉欄位數不等於 2 的行（空白行、格式錯誤行），防止陣列越界</td>
+      </tr>
+      <tr>
+        <td class="code-cell">.Select(parts => (Username: parts[0].Trim(), Password: parts[1].Trim()))</td>
+        <td>轉成具名 tuple，<code>.Trim()</code> 去除前後空白，防止比對失敗</td>
+      </tr>
+      <tr>
+        <td class="code-cell">.ToList()</td>
+        <td>執行整條 LINQ 查詢，結果存入 List</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>3.5 .ToList() 後的資料樣貌</h3>
+  <p>以 <code>users.csv</code> 的實際內容為例：</p>
+  <pre>username,password
+admin,admin123
+user1,password1</pre>
+  <p>執行完 <code>.ToList()</code> 之後，變數 <code>users</code> 的內容為：</p>
+  <table class="data-table">
+    <thead><tr><th class="idx">Index</th><th>Username</th><th>Password</th></tr></thead>
+    <tbody>
+      <tr><td class="idx">0</td><td class="code-cell">"admin"</td><td class="code-cell">"admin123"</td></tr>
+      <tr><td class="idx">1</td><td class="code-cell">"user1"</td><td class="code-cell">"password1"</td></tr>
+    </tbody>
+  </table>
+  <p>標題列（<code>username,password</code>）已被 <code>.Skip(1)</code> 排除，不會出現在清單中。</p>
+
+  <h3>3.6 比對帳號密碼</h3>
+  <pre>var matched = users.FirstOrDefault(u =>
+    u.Username == req.Username && u.Password == req.Password);</pre>
+  <p><code>FirstOrDefault</code> 在清單中找第一個同時符合帳號與密碼的元素。若找到，回傳該 tuple；若找不到，回傳 tuple 的預設值（即 <code>default</code>，兩個欄位皆為 <code>null</code>）。</p>
+
+  <h3>3.7 登入失敗回應</h3>
+  <pre>if (matched == default)
+    return Results.Json(new { success = false, message = "帳號或密碼錯誤" },
+        statusCode: 401);</pre>
+  <p>當 <code>matched</code> 等於 <code>default</code>（表示查無使用者），回傳 HTTP 401 Unauthorized，body 為：</p>
+  <pre>{ "success": false, "message": "帳號或密碼錯誤" }</pre>
+  <p>注意：無論是帳號不存在還是密碼錯誤，都統一回傳相同的錯誤訊息，這是安全設計原則——不讓攻擊者得知帳號是否存在。</p>
+
+  <h3>3.8 登入成功回應</h3>
+  <pre>return Results.Json(new { success = true, username = matched.Username });</pre>
+  <p>登入成功，回傳 HTTP 200 OK，body 為：</p>
+  <pre>{ "success": true, "username": "admin" }</pre>
+</section>
+
+<!-- 四、index.html 詳細解說 -->
+<section>
+  <h2>四、index.html 前端詳細解說</h2>
+  <p><code>wwwroot/index.html</code> 是這個專案的前端頁面，由 ASP.NET Core 的靜態檔案中介軟體（<code>app.UseStaticFiles()</code>）提供給瀏覽器。以下是完整原始碼與逐行說明。</p>
+
+  <h3>4.1 完整原始碼</h3>
+  <pre class="dark"><span class="cm">&lt;!-- wwwroot/index.html --&gt;</span>
+&lt;!DOCTYPE html&gt;
+&lt;html lang=<span class="str">"zh-TW"</span>&gt;
+&lt;head&gt;
+  &lt;meta charset=<span class="str">"UTF-8"</span> /&gt;
+  &lt;title&gt;登入&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;h1&gt;登入&lt;/h1&gt;
+
+  &lt;label&gt;帳號：&lt;input id=<span class="str">"username"</span> type=<span class="str">"text"</span> /&gt;&lt;/label&gt;&lt;br /&gt;&lt;br /&gt;
+  &lt;label&gt;密碼：&lt;input id=<span class="str">"password"</span> type=<span class="str">"password"</span> /&gt;&lt;/label&gt;&lt;br /&gt;&lt;br /&gt;
+  &lt;button onclick=<span class="str">"login()"</span>&gt;登入&lt;/button&gt;
+
+  &lt;p id=<span class="str">"message"</span>&gt;&lt;/p&gt;
+
+  &lt;script&gt;
+    <span class="kw">async function</span> <span class="fn">login</span>() {
+      <span class="kw">const</span> username = document.<span class="fn">getElementById</span>(<span class="str">'username'</span>).value;
+      <span class="kw">const</span> password = document.<span class="fn">getElementById</span>(<span class="str">'password'</span>).value;
+
+      <span class="kw">const</span> res = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">'/login'</span>, {
+        method: <span class="str">'POST'</span>,
+        headers: { <span class="str">'Content-Type'</span>: <span class="str">'application/json'</span> },
+        body: JSON.<span class="fn">stringify</span>({ username, password })
+      });
+
+      <span class="kw">const</span> data = <span class="kw">await</span> res.<span class="fn">json</span>();
+      document.<span class="fn">getElementById</span>(<span class="str">'message'</span>).textContent =
+        data.success ? <span class="str">`歡迎，${data.username}！`</span> : data.message;
+    }
+  &lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;</pre>
+
+  <h3>4.2 HTML 結構部分逐行解說</h3>
+
+  <table>
+    <thead><tr><th>程式碼</th><th>說明</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="code-cell">&lt;!DOCTYPE html&gt;</td>
+        <td>文件類型宣告，告訴瀏覽器這是 HTML5，確保它用標準模式解析，而非舊版相容模式</td>
+      </tr>
+      <tr>
+        <td class="code-cell">&lt;html lang="zh-TW"&gt;</td>
+        <td>HTML 根元素。<code>lang="zh-TW"</code> 指定語言為繁體中文，有助於螢幕閱讀器和搜尋引擎理解頁面語言</td>
+      </tr>
+      <tr>
+        <td class="code-cell">&lt;meta charset="UTF-8" /&gt;</td>
+        <td>指定字元編碼為 UTF-8，確保中文字不會顯示成亂碼</td>
+      </tr>
+      <tr>
+        <td class="code-cell">&lt;title&gt;登入&lt;/title&gt;</td>
+        <td>瀏覽器分頁上顯示的標題文字，不會出現在頁面內容中</td>
+      </tr>
+      <tr>
+        <td class="code-cell">&lt;h1&gt;登入&lt;/h1&gt;</td>
+        <td>頁面最大標題。<code>&lt;h1&gt;</code> 是語意標籤，代表頁面主標題，一個頁面通常只放一個</td>
+      </tr>
+      <tr>
+        <td class="code-cell">&lt;label&gt;帳號：&lt;input id="username" type="text" /&gt;&lt;/label&gt;</td>
+        <td><code>&lt;label&gt;</code> 把文字與輸入框綁在一起，點擊「帳號：」文字也能讓輸入框取得焦點。<code>id="username"</code> 給輸入框命名，供 JavaScript 取值用。<code>type="text"</code> 為一般文字輸入</td>
+      </tr>
+      <tr>
+        <td class="code-cell">&lt;input id="password" type="password" /&gt;</td>
+        <td><code>type="password"</code> 讓輸入的字元自動變成 <code>●</code> 遮蔽，防止旁人看到密碼</td>
+      </tr>
+      <tr>
+        <td class="code-cell">&lt;button onclick="login()"&gt;登入&lt;/button&gt;</td>
+        <td>按鈕元素。<code>onclick="login()"</code> 表示點擊時執行 JavaScript 的 <code>login()</code> 函式</td>
+      </tr>
+      <tr>
+        <td class="code-cell">&lt;p id="message"&gt;&lt;/p&gt;</td>
+        <td>空段落，預設不顯示任何文字。登入結果（成功或錯誤訊息）由 JavaScript 填入這裡</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>4.3 JavaScript 部分逐行解說</h3>
+
+  <h4>宣告非同步函式</h4>
+  <pre>async function login() { ... }</pre>
+  <p><code>async</code> 把 <code>login</code> 宣告為非同步函式，讓函式內部可以使用 <code>await</code>。當 <code>await</code> 在等待網路回應時，瀏覽器不會卡住，使用者仍可操作頁面其他部分。</p>
+
+  <h4>讀取輸入框的值</h4>
+  <pre>const username = document.getElementById('username').value;
+const password = document.getElementById('password').value;</pre>
+  <p><code>document.getElementById('username')</code> 找到頁面上 <code>id</code> 為 <code>username</code> 的元素（帳號輸入框），<code>.value</code> 取出使用者輸入的文字。密碼同理。</p>
+
+  <h4>發送 API 請求（fetch）</h4>
+  <pre>const res = await fetch('/login', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ username, password })
+});</pre>
+  <p><code>fetch</code> 是瀏覽器內建的 HTTP 請求 API，各參數說明如下：</p>
+  <table>
+    <thead><tr><th>參數</th><th>值</th><th>說明</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="code-cell">URL</td>
+        <td class="code-cell">'/login'</td>
+        <td>相對路徑，指目前網站的 <code>/login</code>，也就是後端的 <code>POST /login</code> 端點。不需寫 <code>http://localhost:5000</code>，瀏覽器會自動補上</td>
+      </tr>
+      <tr>
+        <td class="code-cell">method</td>
+        <td class="code-cell">'POST'</td>
+        <td>HTTP 方法設為 POST，對應後端的 <code>app.MapPost</code></td>
+      </tr>
+      <tr>
+        <td class="code-cell">headers</td>
+        <td class="code-cell">Content-Type: application/json</td>
+        <td>告訴後端「我送的 body 是 JSON 格式」，後端才知道要用 JSON 反序列化</td>
+      </tr>
+      <tr>
+        <td class="code-cell">body</td>
+        <td class="code-cell">JSON.stringify({username, password})</td>
+        <td><code>JSON.stringify</code> 把 JavaScript 物件轉成 JSON 字串。<code>{username, password}</code> 是 ES6 縮寫，等同於 <code>{username: username, password: password}</code></td>
+      </tr>
+    </tbody>
+  </table>
+  <p><code>await</code> 讓程式暫停在此，等後端回應後才繼續往下執行，回應結果存入 <code>res</code>。</p>
+
+  <h4>解析回應 JSON</h4>
+  <pre>const data = await res.json();</pre>
+  <p><code>res</code> 是後端的 HTTP 回應物件，<code>.json()</code> 把回應 body 的 JSON 字串解析成 JavaScript 物件。此時 <code>data</code> 的內容會是以下其中一種：</p>
+  <table class="data-table" style="width:auto">
+    <thead><tr><th style="width:120px">情況</th><th style="width:340px">data 的值</th></tr></thead>
+    <tbody>
+      <tr><td>登入成功</td><td class="code-cell">{ success: true, username: "admin" }</td></tr>
+      <tr><td>登入失敗</td><td class="code-cell">{ success: false, message: "帳號或密碼錯誤" }</td></tr>
+    </tbody>
+  </table>
+
+  <h4>顯示結果訊息</h4>
+  <pre>document.getElementById('message').textContent =
+  data.success ? `歡迎，${data.username}！` : data.message;</pre>
+  <p>找到 <code>id="message"</code> 的空段落，把文字填入。使用<strong>三元運算子</strong>：</p>
+  <ul>
+    <li><code>data.success</code> 為 <code>true</code>：顯示 <code>歡迎，admin！</code>（反引號的樣板字串，<code>${data.username}</code> 自動插入使用者名稱）</li>
+    <li><code>data.success</code> 為 <code>false</code>：顯示後端回傳的 <code>data.message</code>（即「帳號或密碼錯誤」）</li>
+  </ul>
+  <p><code>textContent</code> 而非 <code>innerHTML</code>：只插入純文字，防止 XSS 攻擊（若用 <code>innerHTML</code>，惡意使用者可注入 HTML/JavaScript）。</p>
+
+  <h3>4.4 前後端完整互動流程</h3>
+  <div class="flow">
+    <div class="flow-box">👤 使用者<br/>輸入帳密</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box">🖱️ 點擊按鈕<br/>觸發 login()</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box">📤 fetch POST<br/>送 JSON</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box">🖥️ 後端<br/>查 CSV 驗證</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box">📥 回傳<br/>JSON 結果</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box">📝 填入<br/>&lt;p&gt; 訊息</div>
+  </div>
+</section>
+
+<!-- 五、手動測試 -->
+<section>
+  <h2>五、手動測試 API（Postman / 瀏覽器）</h2>
+  <p>在寫自動化測試之前，最直接的方式是用工具手動打 API，確認後端的行為是否符合預期。</p>
+
+  <h3>5.1 啟動專案</h3>
+  <p>在終端機進入專案資料夾後執行：</p>
+  <pre class="dark">dotnet run</pre>
+  <p>啟動後會看到類似以下的輸出，記住 port 號（本專案預設是 <code>5011</code>）：</p>
+  <pre class="dark">Now listening on: http://localhost:5011</pre>
+
+  <h3>5.2 用瀏覽器測試 GET</h3>
+  <p>GET 端點不需要任何工具，直接在瀏覽器網址列輸入即可：</p>
+  <table>
+    <thead><tr><th>網址</th><th>預期結果</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="code-cell">http://localhost:5011/hello</td>
+        <td>頁面顯示 <code>hello matt</code></td>
+      </tr>
+      <tr>
+        <td class="code-cell">http://localhost:5011/weatherforecast</td>
+        <td>顯示 5 筆 JSON 天氣資料</td>
+      </tr>
+      <tr>
+        <td class="code-cell">http://localhost:5011</td>
+        <td>顯示 <code>index.html</code> 登入頁面</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>5.3 用 Postman 測試 POST /login</h3>
+  <p>POST 端點因為需要帶 request body，瀏覽器網址列無法直接測試，需要用工具（如 <a href="https://www.postman.com" target="_blank">Postman</a>）。</p>
+
+  <p><strong>設定步驟：</strong></p>
+  <table>
+    <thead><tr><th>欄位</th><th>設定值</th></tr></thead>
+    <tbody>
+      <tr><td>Method</td><td>POST</td></tr>
+      <tr><td>URL</td><td class="code-cell">http://localhost:5011/login</td></tr>
+      <tr><td>Headers</td><td class="code-cell">Content-Type: application/json</td></tr>
+      <tr><td>Body（raw JSON）</td><td class="code-cell">{ "username": "admin", "password": "admin123" }</td></tr>
+    </tbody>
+  </table>
+
+  <p><strong>預期回應：</strong></p>
+  <pre class="dark"><span class="cm">// 帳密正確 → HTTP 200</span>
+{ <span class="str">"success"</span>: <span class="kw">true</span>, <span class="str">"username"</span>: <span class="str">"admin"</span> }
+
+<span class="cm">// 帳密錯誤 → HTTP 401</span>
+{ <span class="str">"success"</span>: <span class="kw">false</span>, <span class="str">"message"</span>: <span class="str">"帳號或密碼錯誤"</span> }</pre>
+
+  <p><strong>建議多測試幾個情境：</strong></p>
+  <table>
+    <thead><tr><th>測試情境</th><th>輸入</th><th>預期 HTTP 狀態</th></tr></thead>
+    <tbody>
+      <tr><td>帳密正確</td><td class="code-cell">admin / admin123</td><td>200 OK</td></tr>
+      <tr><td>密碼錯誤</td><td class="code-cell">admin / wrongpass</td><td>401 Unauthorized</td></tr>
+      <tr><td>帳號不存在</td><td class="code-cell">nobody / password1</td><td>401 Unauthorized</td></tr>
+      <tr><td>欄位空白</td><td class="code-cell">（空字串）</td><td>401 Unauthorized</td></tr>
+      <tr><td>body 格式錯誤</td><td class="code-cell">非 JSON 字串</td><td>400 Bad Request</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- 六、.http 檔測試 -->
+<section>
+  <h2>六、.http 檔測試（VS Code REST Client）</h2>
+  <p>專案根目錄已有一個 <code>TestApp.http</code> 檔，這是 VS Code 的 <strong>REST Client</strong> 擴充套件支援的格式，可以直接在編輯器內發送 HTTP 請求，不需要切換到 Postman。</p>
+
+  <h3>6.1 安裝擴充套件</h3>
+  <p>在 VS Code 的擴充套件商店搜尋 <strong>REST Client</strong>（作者：Huachao Mao），安裝後即可使用。</p>
+
+  <h3>6.2 現有的 TestApp.http 內容</h3>
+  <pre class="dark"><span class="cm"># 定義基底 URL 變數（只需改這裡就能切換環境）</span>
+@TestApp_HostAddress = http://localhost:5011
+
+<span class="cm"># GET /weatherforecast</span>
+GET {{TestApp_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###</pre>
+  <p><code>###</code> 是請求之間的分隔線，每個請求區塊上方會出現「Send Request」按鈕，點擊即可發送。</p>
+
+  <h3>6.3 擴充完整的測試案例</h3>
+  <p>建議把 <code>TestApp.http</code> 改成以下內容，涵蓋所有端點與情境：</p>
+  <pre class="dark"><span class="cm">### 基底 URL（切換環境只改這裡）</span>
+@host = http://localhost:5011
+
+<span class="cm">### 1. GET /hello</span>
+GET {{host}}/hello
+
+###
+
+<span class="cm">### 2. GET /weatherforecast</span>
+GET {{host}}/weatherforecast
+Accept: application/json
+
+###
+
+<span class="cm">### 3. POST /login — 正確帳密</span>
+POST {{host}}/login
+Content-Type: application/json
+
+{
+  <span class="str">"username"</span>: <span class="str">"admin"</span>,
+  <span class="str">"password"</span>: <span class="str">"admin123"</span>
+}
+
+###
+
+<span class="cm">### 4. POST /login — 錯誤密碼</span>
+POST {{host}}/login
+Content-Type: application/json
+
+{
+  <span class="str">"username"</span>: <span class="str">"admin"</span>,
+  <span class="str">"password"</span>: <span class="str">"wrongpassword"</span>
+}
+
+###
+
+<span class="cm">### 5. POST /login — 不存在的帳號</span>
+POST {{host}}/login
+Content-Type: application/json
+
+{
+  <span class="str">"username"</span>: <span class="str">"nobody"</span>,
+  <span class="str">"password"</span>: <span class="str">"password1"</span>
+}
+
+###</pre>
+
+  <h3>6.4 .http 檔的優點</h3>
+  <table>
+    <thead><tr><th>優點</th><th>說明</th></tr></thead>
+    <tbody>
+      <tr><td>不需切換工具</td><td>在 VS Code 內直接發送，不用開 Postman</td></tr>
+      <tr><td>可進版本控制</td><td><code>.http</code> 是純文字，可以用 Git 管理，整個團隊共用同一份測試腳本</td></tr>
+      <tr><td>支援變數</td><td><code>@host = ...</code> 讓切換本機 / 測試機 / 正式機只需改一行</td></tr>
+      <tr><td>可保存歷史回應</td><td>每次發送後回應會顯示在右側面板，方便比對</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- 七、xUnit 單元測試 -->
+<section>
+  <h2>七、xUnit 單元測試</h2>
+  <p>手動測試只能驗證「現在」的行為，每次改程式後都要重新手動測。<strong>自動化測試</strong>讓你執行一個指令就能確認所有情境仍然正確，是專業開發的基本功。</p>
+  <p>xUnit 是 .NET 生態系最主流的測試框架，ASP.NET Core 官方範本預設也使用它。</p>
+
+  <h3>7.1 建立測試專案</h3>
+  <pre class="dark"><span class="cm"># 在 TestApp 的上一層目錄執行</span>
+dotnet new xunit -n TestApp.Tests
+cd TestApp.Tests
+dotnet add reference ../TestApp/TestApp.csproj</pre>
+  <p>執行後目錄結構會變成：</p>
+  <pre class="dark">TestApp/          ← 主專案
+TestApp.Tests/    ← 測試專案
+  UnitTest1.cs
+  TestApp.Tests.csproj</pre>
+
+  <h3>7.2 單元測試的概念</h3>
+  <p>單元測試的目標是測試「一個小的獨立邏輯單元」，隔離外部依賴（資料庫、檔案系統、網路）。</p>
+  <p>目前 <code>/login</code> 的驗證邏輯混在端點裡，比較難單獨測試。常見的做法是把邏輯<strong>抽成獨立函式</strong>，再對函式寫測試。以下示範如何重構並測試。</p>
+
+  <h3>7.3 抽出可測試的驗證邏輯</h3>
+  <p>在 <code>TestApp</code> 專案中新增 <code>AuthService.cs</code>：</p>
+  <pre class="dark"><span class="cm">// AuthService.cs</span>
+<span class="kw">public static class</span> <span class="fn">AuthService</span>
+{
+    <span class="cm">/// &lt;summary&gt;
+    /// 從 CSV 行清單中比對帳密，回傳使用者名稱；找不到則回傳 null。
+    /// &lt;/summary&gt;</span>
+    <span class="kw">public static string</span>? <span class="fn">Authenticate</span>(
+        IEnumerable&lt;<span class="kw">string</span>&gt; csvLines,
+        <span class="kw">string</span> username,
+        <span class="kw">string</span> password)
+    {
+        <span class="kw">var</span> matched = csvLines
+            .<span class="fn">Skip</span>(<span class="kw">1</span>)
+            .<span class="fn">Select</span>(line =&gt; line.<span class="fn">Split</span>(<span class="str">','</span>))
+            .<span class="fn">Where</span>(parts =&gt; parts.Length == <span class="kw">2</span>)
+            .<span class="fn">Select</span>(parts =&gt; (Username: parts[<span class="kw">0</span>].<span class="fn">Trim</span>(), Password: parts[<span class="kw">1</span>].<span class="fn">Trim</span>()))
+            .<span class="fn">FirstOrDefault</span>(u =&gt; u.Username == username &amp;&amp; u.Password == password);
+
+        <span class="kw">return</span> matched == <span class="kw">default</span> ? <span class="kw">null</span> : matched.Username;
+    }
+}</pre>
+
+  <h3>7.4 撰寫 xUnit 測試</h3>
+  <p>在 <code>TestApp.Tests</code> 新增 <code>AuthServiceTests.cs</code>：</p>
+  <pre class="dark"><span class="cm">// AuthServiceTests.cs</span>
+<span class="kw">public class</span> <span class="fn">AuthServiceTests</span>
+{
+    <span class="cm">// 測試用的假 CSV 資料（不依賴真實檔案）</span>
+    <span class="kw">private readonly</span> string[] _csvLines =
+    [
+        <span class="str">"username,password"</span>,
+        <span class="str">"admin,admin123"</span>,
+        <span class="str">"user1,password1"</span>
+    ];
+
+    <span class="cm">// [Fact] 表示這是一個測試案例</span>
+
+    [Fact]
+    <span class="kw">public void</span> <span class="fn">Authenticate_正確帳密_回傳使用者名稱</span>()
+    {
+        <span class="cm">// Arrange（準備）</span>
+        <span class="kw">var</span> username = <span class="str">"admin"</span>;
+        <span class="kw">var</span> password = <span class="str">"admin123"</span>;
+
+        <span class="cm">// Act（執行）</span>
+        <span class="kw">var</span> result = AuthService.<span class="fn">Authenticate</span>(_csvLines, username, password);
+
+        <span class="cm">// Assert（驗證）</span>
+        Assert.<span class="fn">Equal</span>(<span class="str">"admin"</span>, result);
+    }
+
+    [Fact]
+    <span class="kw">public void</span> <span class="fn">Authenticate_錯誤密碼_回傳null</span>()
+    {
+        <span class="kw">var</span> result = AuthService.<span class="fn">Authenticate</span>(_csvLines, <span class="str">"admin"</span>, <span class="str">"wrongpass"</span>);
+        Assert.<span class="fn">Null</span>(result);
+    }
+
+    [Fact]
+    <span class="kw">public void</span> <span class="fn">Authenticate_不存在帳號_回傳null</span>()
+    {
+        <span class="kw">var</span> result = AuthService.<span class="fn">Authenticate</span>(_csvLines, <span class="str">"nobody"</span>, <span class="str">"password1"</span>);
+        Assert.<span class="fn">Null</span>(result);
+    }
+
+    [Fact]
+    <span class="kw">public void</span> <span class="fn">Authenticate_空白帳號_回傳null</span>()
+    {
+        <span class="kw">var</span> result = AuthService.<span class="fn">Authenticate</span>(_csvLines, <span class="str">""</span>, <span class="str">""</span>);
+        Assert.<span class="fn">Null</span>(result);
+    }
+
+    [Fact]
+    <span class="kw">public void</span> <span class="fn">Authenticate_CSV有多餘空格_仍可比對成功</span>()
+    {
+        <span class="cm">// 測試 .Trim() 是否有效</span>
+        <span class="kw">var</span> csvWithSpaces = <span class="kw">new</span>[] { <span class="str">"username,password"</span>, <span class="str">" admin , admin123 "</span> };
+        <span class="kw">var</span> result = AuthService.<span class="fn">Authenticate</span>(csvWithSpaces, <span class="str">"admin"</span>, <span class="str">"admin123"</span>);
+        Assert.<span class="fn">Equal</span>(<span class="str">"admin"</span>, result);
+    }
+}</pre>
+
+  <h3>7.5 執行測試</h3>
+  <pre class="dark"><span class="cm"># 在 TestApp.Tests 目錄執行</span>
+dotnet test</pre>
+  <p>全部通過時輸出如下：</p>
+  <pre class="dark">Passed!  - Failed: 0, Passed: 5, Skipped: 0, Total: 5</pre>
+
+  <h3>7.6 xUnit 三大核心概念</h3>
+  <table>
+    <thead><tr><th>概念</th><th>說明</th><th>範例</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>[Fact]</strong></td>
+        <td>單一固定測試案例，不帶參數</td>
+        <td>測試「正確帳密回傳使用者名稱」</td>
+      </tr>
+      <tr>
+        <td><strong>[Theory] + [InlineData]</strong></td>
+        <td>同一邏輯，帶入多組不同資料測試</td>
+        <td>一次測試多組錯誤帳密組合</td>
+      </tr>
+      <tr>
+        <td><strong>Arrange / Act / Assert</strong></td>
+        <td>測試的三段式結構：準備資料 → 執行邏輯 → 驗證結果</td>
+        <td>每個 [Fact] 方法的內部結構</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>7.7 [Theory] 範例：一次測試多組資料</h3>
+  <pre class="dark">[Theory]
+[InlineData(<span class="str">"admin"</span>,  <span class="str">"wrongpass"</span>)]
+[InlineData(<span class="str">"nobody"</span>, <span class="str">"password1"</span>)]
+[InlineData(<span class="str">""</span>,       <span class="str">""</span>)]
+<span class="kw">public void</span> <span class="fn">Authenticate_無效輸入_皆回傳null</span>(<span class="kw">string</span> username, <span class="kw">string</span> password)
+{
+    <span class="kw">var</span> result = AuthService.<span class="fn">Authenticate</span>(_csvLines, username, password);
+    Assert.<span class="fn">Null</span>(result);
+}</pre>
+  <p>這段程式會自動執行三次，分別帶入三組 <code>[InlineData]</code> 的資料，等同三個獨立 [Fact]，但程式碼更簡潔。</p>
+</section>
+
+<!-- 八、新增會員功能 -->
+<section>
+  <h2>八、新增會員功能</h2>
+  <p>本章節說明在現有登入系統上新增的會員註冊功能，共涉及三個檔案的改動：<code>wwwroot/register.html</code>（前端）、<code>AuthService.cs</code>（新增 <code>UserExists</code> 方法）、<code>Program.cs</code>（新增 <code>POST /register</code> 端點）。</p>
+
+  <h3>8.1 register.html 完整原始碼</h3>
+  <pre class="dark"><span class="cm">&lt;!-- wwwroot/register.html --&gt;</span>
+&lt;!DOCTYPE html&gt;
+&lt;html lang=<span class="str">"zh-TW"</span>&gt;
+&lt;head&gt;
+  &lt;meta charset=<span class="str">"UTF-8"</span> /&gt;
+  &lt;title&gt;新增會員&lt;/title&gt;
+  <span class="cm">&lt;!-- （省略 CSS 樣式） --&gt;</span>
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;h1&gt;新增會員&lt;/h1&gt;
+
+  &lt;input id=<span class="str">"username"</span>        type=<span class="str">"text"</span>     placeholder=<span class="str">"請輸入帳號"</span> /&gt;
+  &lt;input id=<span class="str">"password"</span>        type=<span class="str">"password"</span> placeholder=<span class="str">"請輸入密碼"</span> /&gt;
+  &lt;input id=<span class="str">"confirmPassword"</span> type=<span class="str">"password"</span> placeholder=<span class="str">"請再輸入一次密碼"</span> /&gt;
+
+  &lt;button onclick=<span class="str">"register()"</span>&gt;建立帳號&lt;/button&gt;
+  &lt;p id=<span class="str">"message"</span>&gt;&lt;/p&gt;
+  &lt;a href=<span class="str">"/"</span>&gt;← 回到登入頁&lt;/a&gt;
+
+  &lt;script&gt;
+    <span class="kw">async function</span> <span class="fn">register</span>() {
+      <span class="kw">const</span> username        = document.<span class="fn">getElementById</span>(<span class="str">'username'</span>).value.<span class="fn">trim</span>();
+      <span class="kw">const</span> password        = document.<span class="fn">getElementById</span>(<span class="str">'password'</span>).value;
+      <span class="kw">const</span> confirmPassword = document.<span class="fn">getElementById</span>(<span class="str">'confirmPassword'</span>).value;
+
+      <span class="cm">// 前端驗證（不需要發送請求就能攔截明顯錯誤）</span>
+      <span class="kw">if</span> (!username || !password) { <span class="fn">showMessage</span>(<span class="str">'帳號與密碼不可為空'</span>, <span class="kw">false</span>); <span class="kw">return</span>; }
+      <span class="kw">if</span> (password !== confirmPassword) { <span class="fn">showMessage</span>(<span class="str">'兩次輸入的密碼不一致'</span>, <span class="kw">false</span>); <span class="kw">return</span>; }
+
+      <span class="kw">const</span> res = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">'/register'</span>, {
+        method: <span class="str">'POST'</span>,
+        headers: { <span class="str">'Content-Type'</span>: <span class="str">'application/json'</span> },
+        body: JSON.<span class="fn">stringify</span>({ username, password })
+      });
+
+      <span class="kw">const</span> data = <span class="kw">await</span> res.<span class="fn">json</span>();
+      <span class="fn">showMessage</span>(data.message, data.success);
+
+      <span class="cm">// 成功後 2 秒自動跳回登入頁</span>
+      <span class="kw">if</span> (data.success) <span class="fn">setTimeout</span>(() =&gt; { window.location.href = <span class="str">'/'</span>; }, <span class="num">2000</span>);
+    }
+
+    <span class="kw">function</span> <span class="fn">showMessage</span>(text, isSuccess) {
+      <span class="kw">const</span> el = document.<span class="fn">getElementById</span>(<span class="str">'message'</span>);
+      el.textContent = text;
+      el.className   = isSuccess ? <span class="str">'success'</span> : <span class="str">'error'</span>;
+    }
+  &lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;</pre>
+
+  <h3>8.2 register.html 重點解說</h3>
+  <table>
+    <thead><tr><th>程式碼</th><th>說明</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="code-cell">type="password"（兩個欄位）</td>
+        <td>密碼與確認密碼都用 <code>type="password"</code> 遮蔽顯示，防止旁人看到</td>
+      </tr>
+      <tr>
+        <td class="code-cell">.value.trim()</td>
+        <td>帳號欄位去除前後空白，防止使用者不小心輸入空格造成的奇怪帳號。密碼欄位不 trim，保留使用者刻意輸入的空白</td>
+      </tr>
+      <tr>
+        <td class="code-cell">password !== confirmPassword</td>
+        <td>前端在送出前先比對兩次輸入，不一致就直接顯示錯誤，不消耗後端資源</td>
+      </tr>
+      <tr>
+        <td class="code-cell">fetch('/register', { method: 'POST', ... })</td>
+        <td>呼叫後端的 <code>POST /register</code> 端點，與 <code>/login</code> 的呼叫方式完全相同</td>
+      </tr>
+      <tr>
+        <td class="code-cell">setTimeout(..., 2000)</td>
+        <td>成功建立帳號後，讓使用者看到成功訊息 2 秒，再自動導向登入頁，提升體驗</td>
+      </tr>
+      <tr>
+        <td class="code-cell">el.className = isSuccess ? 'success' : 'error'</td>
+        <td>用 CSS class 切換訊息顏色（綠色成功 / 紅色失敗），而非用 <code>style</code> 直接操作，更好維護</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>8.3 AuthService.UserExists() 解說</h3>
+  <pre class="dark"><span class="kw">public static bool</span> <span class="fn">UserExists</span>(IEnumerable&lt;<span class="kw">string</span>&gt; csvLines, <span class="kw">string</span> username)
+{
+    <span class="kw">return</span> csvLines
+        .<span class="fn">Skip</span>(<span class="num">1</span>)
+        .<span class="fn">Select</span>(line =&gt; line.<span class="fn">Split</span>(<span class="str">','</span>))
+        .<span class="fn">Where</span>(parts =&gt; parts.Length == <span class="num">2</span>)
+        .<span class="fn">Any</span>(parts =&gt; parts[<span class="num">0</span>].<span class="fn">Trim</span>()
+            .<span class="fn">Equals</span>(username, StringComparison.OrdinalIgnoreCase));
+}</pre>
+
+  <table>
+    <thead><tr><th>程式碼</th><th>說明</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="code-cell">.Any(...)</td>
+        <td>只要找到一筆就回傳 <code>true</code>，比 <code>FirstOrDefault</code> 更語意清晰（我們只想知道「存不存在」）</td>
+      </tr>
+      <tr>
+        <td class="code-cell">StringComparison.OrdinalIgnoreCase</td>
+        <td>大小寫不分的比對。避免使用者用 <code>ADMIN</code> 搶占已有的 <code>admin</code> 帳號</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>8.4 POST /register 端點完整程式碼</h3>
+  <pre class="dark">app.<span class="fn">MapPost</span>(<span class="str">"/register"</span>, (<span class="cls">RegisterRequest</span> req) =&gt;
+{
+    <span class="cm">// ① 基本驗證：欄位不可為空</span>
+    <span class="kw">if</span> (<span class="cls">string</span>.<span class="fn">IsNullOrWhiteSpace</span>(req.Username) || <span class="cls">string</span>.<span class="fn">IsNullOrWhiteSpace</span>(req.Password))
+        <span class="kw">return</span> Results.<span class="fn">Json</span>(<span class="kw">new</span> { success = <span class="kw">false</span>, message = <span class="str">"帳號與密碼不可為空"</span> },
+            statusCode: <span class="num">400</span>);
+
+    <span class="cm">// ② 格式驗證：帳號不可含逗號（CSV 分隔符號）</span>
+    <span class="kw">if</span> (req.Username.<span class="fn">Contains</span>(<span class="str">','</span>))
+        <span class="kw">return</span> Results.<span class="fn">Json</span>(<span class="kw">new</span> { success = <span class="kw">false</span>, message = <span class="str">"帳號不可包含逗號"</span> },
+            statusCode: <span class="num">400</span>);
+
+    <span class="kw">var</span> csvPath = Path.<span class="fn">Combine</span>(Directory.<span class="fn">GetCurrentDirectory</span>(), <span class="str">"users.csv"</span>);
+
+    <span class="cm">// ③ 若 CSV 不存在，自動建立含標題列的新檔</span>
+    <span class="kw">if</span> (!File.<span class="fn">Exists</span>(csvPath))
+        File.<span class="fn">WriteAllText</span>(csvPath, <span class="str">"username,password\n"</span>);
+
+    <span class="kw">var</span> csvLines = File.<span class="fn">ReadAllLines</span>(csvPath);
+
+    <span class="cm">// ④ 檢查帳號是否已存在（大小寫不分）</span>
+    <span class="kw">if</span> (AuthService.<span class="fn">UserExists</span>(csvLines, req.Username))
+        <span class="kw">return</span> Results.<span class="fn">Json</span>(<span class="kw">new</span> { success = <span class="kw">false</span>, message = <span class="str">"此帳號已被使用"</span> },
+            statusCode: <span class="num">409</span>);
+
+    <span class="cm">// ⑤ 寫入新帳號到 CSV 最後一行</span>
+    File.<span class="fn">AppendAllText</span>(csvPath, <span class="str">$"{req.Username},{req.Password}\n"</span>);
+
+    <span class="kw">return</span> Results.<span class="fn">Json</span>(
+        <span class="kw">new</span> { success = <span class="kw">true</span>, message = <span class="str">$"帳號 {req.Username} 建立成功！"</span> },
+        statusCode: <span class="num">201</span>);
+});</pre>
+
+  <h3>8.5 POST /register 逐步解說</h3>
+  <table>
+    <thead><tr><th>#</th><th>程式碼</th><th>說明</th><th>回傳狀態碼</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>①</td>
+        <td class="code-cell">IsNullOrWhiteSpace</td>
+        <td>檢查帳號或密碼是否為空白（包含只有空格的情況）</td>
+        <td>400 Bad Request</td>
+      </tr>
+      <tr>
+        <td>②</td>
+        <td class="code-cell">Contains(',')</td>
+        <td>帳號若含逗號會破壞 CSV 格式，必須提前攔截</td>
+        <td>400 Bad Request</td>
+      </tr>
+      <tr>
+        <td>③</td>
+        <td class="code-cell">File.WriteAllText(...)</td>
+        <td>第一次執行時 CSV 可能不存在，自動建立避免後續讀取失敗</td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td>④</td>
+        <td class="code-cell">AuthService.UserExists</td>
+        <td>帳號重複時回傳 409 Conflict（HTTP 語意：資源衝突）</td>
+        <td>409 Conflict</td>
+      </tr>
+      <tr>
+        <td>⑤</td>
+        <td class="code-cell">File.AppendAllText</td>
+        <td>用 Append 而非 WriteAll，只在最後加一行，不覆蓋現有資料</td>
+        <td>201 Created</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>8.6 完整互動流程</h3>
+  <div class="flow">
+    <div class="flow-box">👤 填寫<br/>帳號密碼</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box">🖱️ 點擊<br/>建立帳號</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box">⚡ 前端<br/>驗證密碼一致</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box">📤 POST<br/>/register</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box">🖥️ 後端<br/>驗證 + 檢查重複</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box">💾 寫入<br/>users.csv</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box">↩️ 跳回<br/>登入頁</div>
+  </div>
+
+  <h3>8.7 HTTP 回應對照表</h3>
+  <table>
+    <thead><tr><th>情境</th><th>HTTP 狀態碼</th><th>回應 body</th></tr></thead>
+    <tbody>
+      <tr><td>成功新增</td><td>201 Created</td><td class="code-cell">{ "success": true, "message": "帳號 xxx 建立成功！" }</td></tr>
+      <tr><td>帳號或密碼為空</td><td>400 Bad Request</td><td class="code-cell">{ "success": false, "message": "帳號與密碼不可為空" }</td></tr>
+      <tr><td>帳號含逗號</td><td>400 Bad Request</td><td class="code-cell">{ "success": false, "message": "帳號不可包含逗號" }</td></tr>
+      <tr><td>帳號已存在</td><td>409 Conflict</td><td class="code-cell">{ "success": false, "message": "此帳號已被使用" }</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- 九、改善建議 -->
+<section>
+  <h2>九、改善建議</h2>
+  <table>
+    <thead><tr><th>問題</th><th>風險</th><th>建議做法</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="risk-problem">密碼明文儲存</td>
+        <td>CSV 洩漏後密碼直接暴露</td>
+        <td>改用 BCrypt 雜湊儲存</td>
+      </tr>
+      <tr>
+        <td class="risk-problem">無 Token 機制</td>
+        <td>無法保護需驗證的 API</td>
+        <td>加入 JWT Bearer Token</td>
+      </tr>
+      <tr>
+        <td class="risk-problem">每次讀 CSV</td>
+        <td>高流量下 I/O 效能瓶頸</td>
+        <td>改用資料庫（SQLite / PostgreSQL）</td>
+      </tr>
+      <tr>
+        <td class="risk-problem">未強制 HTTPS</td>
+        <td>密碼在傳輸中以明文暴露</td>
+        <td>啟用 <code>UseHttpsRedirection()</code></td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+</body>
+</html>

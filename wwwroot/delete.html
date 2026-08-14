@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <title>刪除帳號</title>
+</head>
+<body>
+  <h1>刪除帳號</h1>
+  <p>⚠️ 此操作將永久刪除帳號，無法復原。</p>
+  <br>
+  <label>帳號：</label>
+  <input id="username" type="text" placeholder="請輸入要刪除的帳號" />
+  <br>
+  <label>密碼：</label>
+  <input id="password" type="password" placeholder="請輸入密碼確認身分" />
+  <br>
+  <button onclick="deleteAccount()">確認刪除</button>
+
+  <p id="message"></p>
+
+  <script>
+    async function deleteAccount() {
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+
+      // 前端基本驗證
+      if (!username || !password) {
+        showMessage('帳號與密碼不可為空', false);
+        return;
+      }}
